@@ -14,6 +14,8 @@ import {FOOTER_QUERY, HEADER_QUERY} from '~/lib/fragments';
 import resetStyles from '~/styles/reset.css?url';
 import appStyles from '~/styles/app.css?url';
 import {PageLayout} from './components/PageLayout';
+import mandasaStyles from '~/styles/mandasa.css?url';
+import 'flickity/css/flickity.css';
 
 /**
  * This is important to avoid re-fetching root queries on sub-navigations
@@ -97,18 +99,21 @@ export async function loader(args) {
 async function loadCriticalData({context}) {
   const {storefront} = context;
 
-  const [header] = await Promise.all([
-    storefront.query(HEADER_QUERY, {
-      cache: storefront.CacheLong(),
-      variables: {
-        headerMenuHandle: 'main-menu', // Adjust to your header menu handle
-      },
-    }),
-    // Add other queries here, so that they are loaded in parallel
-  ]);
+  const header = await storefront.query(HEADER_QUERY, {
+    cache: storefront.CacheLong(),
+    variables: {
+      headerMenuHandle: 'menu_mt',
+      womenMenuHandle: 'women-mt',
+      livingMenuHandle:'living',
+      country: storefront.i18n.country,
+      language: storefront.i18n.language,
+    },
+  });
 
   return {header};
 }
+
+
 
 /**
  * Load data for rendering content below the fold. This data is deferred and will be
@@ -124,8 +129,10 @@ function loadDeferredData({context}) {
     .query(FOOTER_QUERY, {
       cache: storefront.CacheLong(),
       variables: {
-        footerMenuHandle: 'footer', // Adjust to your footer menu handle
+        helpHandle: 'need-help',
+        companyHandle: 'the-company',
       },
+
     })
     .catch((error) => {
       // Log query errors, but don't throw them so the page can still render
@@ -152,6 +159,15 @@ export function Layout({children}) {
         <meta name="viewport" content="width=device-width,initial-scale=1" />
         <link rel="stylesheet" href={resetStyles}></link>
         <link rel="stylesheet" href={appStyles}></link>
+        <link rel="stylesheet" href={mandasaStyles}></link>
+
+<script
+  nonce={nonce}
+  async
+  src="https://cdnwidget.judge.me/widget_preloader.js"
+/>
+
+
         <Meta />
         <Links />
       </head>

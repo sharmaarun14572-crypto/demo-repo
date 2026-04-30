@@ -74,9 +74,9 @@ aside header h2 {
   margin-top: 0;
 }
 
-aside main {
+/* aside main {
   margin: 1rem;
-}
+} */
 
 aside p {
   margin: 0 0 0.25rem;
@@ -142,7 +142,9 @@ button.reset {
   background: inherit;
   font-size: inherit;
 }
-
+.banner_image img {
+    width: 100%;
+}
 button.reset > * {
   margin: 0;
 }
@@ -167,12 +169,50 @@ button.reset:hover:not(:has(> *)) {
   background: #fff;
   display: flex;
   height: var(--header-height);
-  padding: 0 1rem;
-  position: sticky;
-  top: 0;
+  /* padding: 0 1rem; */
+  /* position: sticky;
+  top: 0; */
   z-index: 1;
+  width: 100%;
+  justify-content: center;
 }
-
+.logo_container {
+    width: 15%;
+}
+.header-menu-item {
+    cursor: pointer;
+    color: #36454f;
+    font-size: 13px;
+    font-family: var(--ft1);
+    font-weight: 400;
+    text-transform: uppercase;
+    position: relative;
+    line-height: 40px;
+    padding: 0 15px;
+    min-height: 55px;
+    display: flex;
+    align-items: center;
+}
+body {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    
+}
+.page-width{
+    max-width: 1400px;
+    margin: auto;
+}
+nav.header-menu-desktop {
+    width: 70%;
+    margin: auto;
+    justify-content: center;
+    position: relative;
+}
+nav.header-ctas {
+    width: 15%;
+    justify-content: flex-end;
+}
 .header-menu-mobile-toggle {
   @media (min-width: 48em) {
     display: none;
@@ -253,6 +293,79 @@ button.reset:hover:not(:has(> *)) {
   display: flex;
   padding: 0.75rem 0;
 }
+.announcement-bar {
+    background: #5ac4be;
+    color: #fff;
+    text-align: center;
+    padding: 10px;
+    overflow: hidden;
+    white-space: nowrap;
+    padding: 10px 0;
+}
+
+.marquee-container {
+  width: 100%;
+  overflow: hidden;
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  will-change: transform;
+}
+
+.marquee-group {
+  display: flex;
+  white-space: nowrap;
+}
+
+.marquee-group span {
+  padding: 0 40px;
+  font-size: 14px;
+}
+
+
+
+.mega-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #fff;
+  padding: 20px;
+  min-width: 250px;
+  display: none;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.12);
+  z-index: 999;
+}
+
+.menu-item-wrapper:hover .mega-menu {
+  display: block;
+}
+
+.mega-menu-link {
+  display: block;
+  padding: 8px 0;
+  color: #000;
+  text-decoration: none;
+}
+
+.mega-menu-link:hover {
+  color: #5cc6be;
+}
+.collection_heading {
+    color: #5ac4be;
+    font-size: 33px;
+    padding: 0;
+    margin: 15px 0px;
+    text-align: center;
+}
+
+
+
+
+
+
+
 
 .cart-line img {
   height: 100%;
@@ -572,3 +685,4 @@ button.reset:hover:not(:has(> *)) {
   gap: 0.75rem;
   flex-wrap: wrap;
 }
+

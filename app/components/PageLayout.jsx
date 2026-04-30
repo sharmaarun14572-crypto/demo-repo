@@ -9,7 +9,7 @@ import {
   SearchFormPredictive,
 } from '~/components/SearchFormPredictive';
 import {SearchResultsPredictive} from '~/components/SearchResultsPredictive';
-
+import Announcementbar from './Announcement-bar';
 /**
  * @param {PageLayoutProps}
  */
@@ -26,6 +26,7 @@ export function PageLayout({
       <CartAside cart={cart} />
       <SearchAside />
       <MobileMenuAside header={header} publicStoreDomain={publicStoreDomain} />
+      <Announcementbar />
       {header && (
         <Header
           header={header}
@@ -149,21 +150,20 @@ function SearchAside() {
  *   publicStoreDomain: PageLayoutProps['publicStoreDomain'];
  * }}
  */
-function MobileMenuAside({header, publicStoreDomain}) {
+function MobileMenuAside({header}) {
+
   return (
-    header.menu &&
-    header.shop.primaryDomain?.url && (
+    header?.menu && (
       <Aside type="mobile" heading="MENU">
         <HeaderMenu
           menu={header.menu}
           viewport="mobile"
-          primaryDomainUrl={header.shop.primaryDomain.url}
-          publicStoreDomain={publicStoreDomain}
         />
       </Aside>
     )
   );
 }
+
 
 /**
  * @typedef {Object} PageLayoutProps

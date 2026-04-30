@@ -1,96 +1,234 @@
 import {redirect, useLoaderData} from 'react-router';
-import {getPaginationVariables, Analytics} from '@shopify/hydrogen';
-import {PaginatedResourceSection} from '~/components/PaginatedResourceSection';
+import {Analytics} from '@shopify/hydrogen';
 import {redirectIfHandleIsLocalized} from '~/lib/redirect';
 import {ProductItem} from '~/components/ProductItem';
+import FilterBar from '~/components/FilterBar';
+import {useState, useEffect} from 'react';
 
-/**
- * @type {Route.MetaFunction}
- */
 export const meta = ({data}) => {
   return [{title: `Hydrogen | ${data?.collection.title ?? ''} Collection`}];
 };
 
-/**
- * @param {Route.LoaderArgs} args
- */
-export async function loader(args) {
-  // Start fetching non-critical data without blocking time to first byte
-  const deferredData = loadDeferredData(args);
-
-  // Await the critical data required to render initial state of the page
-  const criticalData = await loadCriticalData(args);
-
-  return {...deferredData, ...criticalData};
-}
-
-/**
- * Load data necessary for rendering content above the fold. This is the critical data
- * needed to render the page. If it's unavailable, the whole page should 400 or 500 error.
- * @param {Route.LoaderArgs}
- */
-async function loadCriticalData({context, params, request}) {
+export async function loader({context, params, request}) {
   const {handle} = params;
   const {storefront} = context;
-  const paginationVariables = getPaginationVariables(request, {
-    pageBy: 8,
+
+  if (!handle) throw redirect('/collections');
+
+  const {collection} = await storefront.query(COLLECTION_QUERY, {
+    variables: {handle},
   });
 
-  if (!handle) {
-    throw redirect('/collections');
-  }
-
-  const [{collection}] = await Promise.all([
-    storefront.query(COLLECTION_QUERY, {
-      variables: {handle, ...paginationVariables},
-      // Add other queries here, so that they are loaded in parallel
-    }),
-  ]);
-
   if (!collection) {
-    throw new Response(`Collection ${handle} not found`, {
-      status: 404,
-    });
+    throw new Response(`Collection ${handle} not found`, {status: 404});
   }
 
-  // The API handle might be localized, so redirect to the localized handle
   redirectIfHandleIsLocalized(request, {handle, data: collection});
-
-  return {
-    collection,
-  };
-}
-
-/**
- * Load data for rendering content below the fold. This data is deferred and will be
- * fetched after the initial page load. If it's unavailable, the page should still 200.
- * Make sure to not throw any errors here, as it will cause the page to 500.
- * @param {Route.LoaderArgs}
- */
-function loadDeferredData({context}) {
-  return {};
+  return {collection};
 }
 
 export default function Collection() {
-  /** @type {LoaderReturnData} */
   const {collection} = useLoaderData();
+  const products = collection.products.nodes;
+
+  /* ---------------- STATE ---------------- */
+  const [selectedColors, setSelectedColors] = useState([]);
+  const [selectedAvailability, setSelectedAvailability] = useState([]);
+  const [selectedSizes, setSelectedSizes] = useState([]);
+  const [selectedStyles, setSelectedStyles] = useState([]);
+  const [sortType, setSortType] = useState("best");
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const PRODUCTS_PER_PAGE = 8;
+
+  /* ---------------- FILTERS ---------------- */
+  let filteredProducts = [...products];
+
+  if (selectedAvailability.length > 0) {
+    filteredProducts = filteredProducts.filter((product) => {
+      if (selectedAvailability.includes("in") && product.availableForSale) return true;
+      if (selectedAvailability.includes("out") && !product.availableForSale) return true;
+      return false;
+    });
+  }
+
+  if (selectedColors.length > 0) {
+    filteredProducts = filteredProducts.filter((product) =>
+      product.options.some(
+        (opt) =>
+          opt.name.toLowerCase() === "color" &&
+          opt.values.some((val) => selectedColors.includes(val))
+      )
+    );
+  }
+
+  if (selectedSizes.length > 0) {
+    filteredProducts = filteredProducts.filter((product) =>
+      product.options.some(
+        (opt) =>
+          opt.name.toLowerCase() === "size" &&
+          opt.values.some((val) => selectedSizes.includes(val))
+      )
+    );
+  }
+
+  if (selectedStyles.length > 0) {
+    filteredProducts = filteredProducts.filter((product) =>
+      product.tags.some((tag) => selectedStyles.includes(tag))
+    );
+  }
+
+  /* ---------------- HELPERS ---------------- */
+
+  function getSafeInventory(product) {
+    if (!product?.variants?.nodes?.length) {
+      return product.availableForSale ? 9999 : 0;
+    }
+
+    const total = product.variants.nodes.reduce((sum, v) => {
+      const qty = Number(v.quantityAvailable);
+      return sum + (Number.isFinite(qty) ? qty : 0);
+    }, 0);
+
+    return total;
+  }
+
+  function getSortValue(p) {
+    return Number(p.metafield?.value ?? 999999);
+  }
+
+  /* ---------------- SORTING ---------------- */
+
+  if (sortType && sortType !== "best") {
+    filteredProducts = [...filteredProducts].sort((a, b) => {
+      switch (sortType) {
+        case "az":
+          return a.title.localeCompare(b.title);
+
+        case "za":
+          return b.title.localeCompare(a.title);
+
+        case "low":
+          return Number(a.priceRange.minVariantPrice.amount) -
+                 Number(b.priceRange.minVariantPrice.amount);
+
+        case "high":
+          return Number(b.priceRange.minVariantPrice.amount) -
+                 Number(a.priceRange.minVariantPrice.amount);
+
+        case "inventory-high":
+          return getSafeInventory(b) - getSafeInventory(a);
+
+        case "inventory-low":
+          return getSafeInventory(a) - getSafeInventory(b);
+
+        case "meta":
+          return getSortValue(a) - getSortValue(b);
+
+        default:
+          return 0;
+      }
+    });
+  }
+
+  /* ---------------- PAGINATION ---------------- */
+
+  const totalPages = Math.ceil(filteredProducts.length / PRODUCTS_PER_PAGE);
+  const start = (currentPage - 1) * PRODUCTS_PER_PAGE;
+  const paginatedProducts = filteredProducts.slice(
+    start,
+    start + PRODUCTS_PER_PAGE
+  );
+
+  /* Reset page when filter/sort changes */
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    selectedColors,
+    selectedSizes,
+    selectedStyles,
+    selectedAvailability,
+    sortType,
+  ]);
+
+  /* ---------------- FILTER DATA ---------------- */
+
+  const colors = [
+    ...new Set(
+      products.flatMap((product) =>
+        product.options
+          .filter((opt) => opt.name.toLowerCase() === "color")
+          .flatMap((opt) => opt.values)
+      )
+    ),
+  ];
+
+  const sizes = [
+    ...new Set(
+      products.flatMap((product) =>
+        product.options
+          .filter((opt) => opt.name.toLowerCase() === "size")
+          .flatMap((opt) => opt.values)
+      )
+    ),
+  ];
+
+  const styles = [...new Set(products.flatMap((product) => product.tags))];
 
   return (
     <div className="collection">
       <h1>{collection.title}</h1>
       <p className="collection-description">{collection.description}</p>
-      <PaginatedResourceSection
-        connection={collection.products}
-        resourcesClassName="products-grid"
-      >
-        {({node: product, index}) => (
+
+      <FilterBar
+        colors={colors}
+        sizes={sizes}
+        styles={styles}
+        products={products}
+        selectedColors={selectedColors}
+        setSelectedColors={setSelectedColors}
+        selectedSizes={selectedSizes}
+        setSelectedSizes={setSelectedSizes}
+        selectedStyles={selectedStyles}
+        setSelectedStyles={setSelectedStyles}
+        selectedAvailability={selectedAvailability}
+        setSelectedAvailability={setSelectedAvailability}
+        sortType={sortType}
+        setSortType={setSortType}
+      />
+
+      {/* PRODUCTS */}
+      <div className="products-grid">
+        {paginatedProducts.map((product, index) => (
           <ProductItem
             key={product.id}
             product={product}
-            loading={index < 8 ? 'eager' : undefined}
+            loading={index < 8 ? "eager" : undefined}
           />
-        )}
-      </PaginatedResourceSection>
+        ))}
+      </div>
+
+      {/* PAGINATION */}
+      <div className="pagination">
+        <button
+          disabled={currentPage === 1}
+          onClick={() => setCurrentPage((p) => p - 1)}
+        >
+          Prev
+        </button>
+
+        <span>
+          Page {currentPage} of {totalPages}
+        </span>
+
+        <button
+          disabled={currentPage === totalPages}
+          onClick={() => setCurrentPage((p) => p + 1)}
+        >
+          Next
+        </button>
+      </div>
+
       <Analytics.CollectionView
         data={{
           collection: {
@@ -103,70 +241,51 @@ export default function Collection() {
   );
 }
 
-const PRODUCT_ITEM_FRAGMENT = `#graphql
-  fragment MoneyProductItem on MoneyV2 {
-    amount
-    currencyCode
-  }
-  fragment ProductItem on Product {
+/* ---------------- GRAPHQL ---------------- */
+
+const COLLECTION_QUERY = `#graphql
+query Collection($handle: String!) {
+  collection(handle: $handle) {
     id
     handle
     title
-    featuredImage {
-      id
-      altText
-      url
-      width
-      height
-    }
-    priceRange {
-      minVariantPrice {
-        ...MoneyProductItem
-      }
-      maxVariantPrice {
-        ...MoneyProductItem
-      }
-    }
-  }
-`;
+    description
+    products(first: 250) {
+      nodes {
+        id
+        handle
+        title
+        availableForSale
+        tags
 
-// NOTE: https://shopify.dev/docs/api/storefront/2022-04/objects/collection
-const COLLECTION_QUERY = `#graphql
-  ${PRODUCT_ITEM_FRAGMENT}
-  query Collection(
-    $handle: String!
-    $country: CountryCode
-    $language: LanguageCode
-    $first: Int
-    $last: Int
-    $startCursor: String
-    $endCursor: String
-  ) @inContext(country: $country, language: $language) {
-    collection(handle: $handle) {
-      id
-      handle
-      title
-      description
-      products(
-        first: $first,
-        last: $last,
-        before: $startCursor,
-        after: $endCursor
-      ) {
-        nodes {
-          ...ProductItem
+        metafield(namespace: "custom", key: "sort_order") {
+          value
         }
-        pageInfo {
-          hasPreviousPage
-          hasNextPage
-          endCursor
-          startCursor
+
+        options {
+          name
+          values
+        }
+
+        variants(first: 50) {
+          nodes {
+            quantityAvailable
+          }
+        }
+
+        featuredImage {
+          url
+          altText
+        }
+
+        priceRange {
+          minVariantPrice {
+            amount
+            currencyCode
+          }
         }
       }
     }
   }
+}
 `;
-
-/** @typedef {import('./+types/collections.$handle').Route} Route */
-/** @typedef {import('storefrontapi.generated').ProductItemFragment} ProductItemFragment */
-/** @typedef {import('@shopify/remix-oxygen').SerializeFrom<typeof loader>} LoaderReturnData */

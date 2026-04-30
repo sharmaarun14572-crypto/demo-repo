@@ -189,46 +189,99 @@ const MENU_FRAGMENT = `#graphql
   }
 `;
 
+// export const HEADER_QUERY = `#graphql
+// query Header(
+//   $country: CountryCode
+//   $headerMenuHandle: String!
+//   $language: LanguageCode
+// ) @inContext(language: $language, country: $country) {
+
+//   shop {
+//     id
+//     name
+//   }
+
+//   menu(handle: $headerMenuHandle) {
+//     id
+//     items {
+//       id
+//       title
+//       url
+//     }
+//   }
+// }
+// `;
+
 export const HEADER_QUERY = `#graphql
-  fragment Shop on Shop {
+query Header(
+  $country: CountryCode
+  $headerMenuHandle: String!
+  $womenMenuHandle: String!
+  $livingMenuHandle: String!
+  $language: LanguageCode
+) @inContext(language: $language, country: $country) {
+  menu(handle: $headerMenuHandle) {
     id
-    name
-    description
-    primaryDomain {
+    items {
+      id
+      title
       url
-    }
-    brand {
-      logo {
-        image {
-          url
-        }
+      items {
+        id
+        title
+        url
       }
     }
   }
-  query Header(
-    $country: CountryCode
-    $headerMenuHandle: String!
-    $language: LanguageCode
-  ) @inContext(language: $language, country: $country) {
-    shop {
-      ...Shop
-    }
-    menu(handle: $headerMenuHandle) {
-      ...Menu
+
+  womenMenu: menu(handle: $womenMenuHandle) {
+    id
+    items {
+      id
+      title
+      url
+      items {
+        id
+        title
+        url
+      }
     }
   }
-  ${MENU_FRAGMENT}
+     livingMenu: menu(handle: $livingMenuHandle) {
+    id
+    items {
+      id
+      title
+      url
+      items {
+        id
+        title
+        url
+      }
+    }
+  }
+}
 `;
+
+
 
 export const FOOTER_QUERY = `#graphql
   query Footer(
     $country: CountryCode
-    $footerMenuHandle: String!
+    $helpHandle: String!
+    $companyHandle: String!
     $language: LanguageCode
   ) @inContext(language: $language, country: $country) {
-    menu(handle: $footerMenuHandle) {
+
+    help: menu(handle: $helpHandle) {
       ...Menu
     }
+
+    company: menu(handle: $companyHandle) {
+      ...Menu
+    }
+
   }
   ${MENU_FRAGMENT}
 `;
+

@@ -11,7 +11,10 @@ import {ProductPrice} from '~/components/ProductPrice';
 import {ProductImage} from '~/components/ProductImage';
 import {ProductForm} from '~/components/ProductForm';
 import {redirectIfHandleIsLocalized} from '~/lib/redirect';
-
+import {ProductGallery} from '~/components/ProductGallery';
+import WriteReviewButton from "~/components/WriteReviewButton";
+import {JudgeMeBadge} from '~/components/JudgeMeReviews';
+import { ReviewsSection } from '~/components/ReviewsSection';
 /**
  * @type {Route.MetaFunction}
  */
@@ -86,7 +89,7 @@ function loadDeferredData({context, params}) {
 export default function Product() {
   /** @type {LoaderReturnData} */
   const {product} = useLoaderData();
-
+  console.log("Product metafields:", product.metafields);
   // Optimistically selects a variant with given available variant information
   const selectedVariant = useOptimisticVariant(
     product.selectedOrFirstAvailableVariant,
@@ -106,10 +109,13 @@ export default function Product() {
   const {title, descriptionHtml} = product;
 
   return (
-    <div className="product">
-      <ProductImage image={selectedVariant?.image} />
+    <div className="product ">
+      <ProductGallery images={product.images}   selectedVariant={selectedVariant}
+ />
+
       <div className="product-main">
         <h1>{title}</h1>
+        <JudgeMeBadge metafields={product.metafields} />
         <ProductPrice
           price={selectedVariant?.price}
           compareAtPrice={selectedVariant?.compareAtPrice}
@@ -119,6 +125,9 @@ export default function Product() {
           productOptions={productOptions}
           selectedVariant={selectedVariant}
         />
+        <WriteReviewButton product={product} />
+        console.log("Product metafields:", product.metafields);
+        <ReviewsSection metafields={product.metafields} />
         <br />
         <br />
         <p>
@@ -184,16 +193,29 @@ const PRODUCT_VARIANT_FRAGMENT = `#graphql
   }
 `;
 
+
 const PRODUCT_FRAGMENT = `#graphql
   fragment Product on Product {
     id
     title
     vendor
     handle
+
+    images(first: 20) {
+      nodes {
+        id
+        url
+        altText
+        width
+        height
+      }
+    }
+
     descriptionHtml
     description
     encodedVariantExistence
     encodedVariantAvailability
+
     options {
       name
       optionValues {
@@ -211,19 +233,33 @@ const PRODUCT_FRAGMENT = `#graphql
         }
       }
     }
-    selectedOrFirstAvailableVariant(selectedOptions: $selectedOptions, ignoreUnknownOptions: true, caseInsensitiveMatch: true) {
+
+    selectedOrFirstAvailableVariant(
+      selectedOptions: $selectedOptions
+      ignoreUnknownOptions: true
+      caseInsensitiveMatch: true
+    ) {
       ...ProductVariant
     }
-    adjacentVariants (selectedOptions: $selectedOptions) {
+
+    adjacentVariants(selectedOptions: $selectedOptions) {
       ...ProductVariant
     }
+
     seo {
       description
       title
     }
+          metafield(namespace: "judgeme", key: "review_widget_data") {
+  namespace
+  key
+  value
+}
+
   }
   ${PRODUCT_VARIANT_FRAGMENT}
 `;
+
 
 const PRODUCT_QUERY = `#graphql
   query Product(
